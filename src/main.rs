@@ -4,11 +4,20 @@
 extern crate failure;
 extern crate json;
 extern crate reqwest;
+extern crate structopt;
 
-use std::env;
+use structopt::StructOpt;
 
 const ENDPOINT: &'static str = "https://www.googleapis.com/youtube/v3/channels?id=UCZ_EWaQZCZuGGfnuqUoHujw&part=statistics&key=";
 
+#[derive(Debug, StructOpt)]
+#[structopt(name = "subscribers")]
+/// A small CLI app which spits out the subscriber count of the 'HelloRust' Youtube channel as binary.
+struct Opt {
+    #[structopt(short = "a", long = "api")]
+    /// YouTube api key to fetch the results
+    key: String,
+}
 #[derive(Debug, Fail)]
 enum RaspberryTubeError {
     #[fail(display = "{}", _0)]
@@ -19,9 +28,6 @@ enum RaspberryTubeError {
 
     #[fail(display = "{}", _0)]
     Json(#[cause] json::Error),
-
-    #[fail(display = "{}", _0)]
-    Env(#[cause] std::env::VarError),
 
     #[fail(display = "None error")]
     NoneError(std::option::NoneError),
@@ -39,12 +45,6 @@ impl From<json::Error> for RaspberryTubeError {
     }
 }
 
-impl From<std::env::VarError> for RaspberryTubeError {
-    fn from(err: std::env::VarError) -> RaspberryTubeError {
-        RaspberryTubeError::Env(err)
-    }
-}
-
 impl From<std::num::ParseIntError> for RaspberryTubeError {
     fn from(err: std::num::ParseIntError) -> RaspberryTubeError {
         RaspberryTubeError::ParseInt(err)
@@ -58,7 +58,7 @@ impl From<std::option::NoneError> for RaspberryTubeError {
 }
 
 fn get_subscribers() -> Result<u64, RaspberryTubeError> {
-    let api_key = env::var("API_KEY")?;
+    let api_key = Opt::from_args().key;
     let body = reqwest::get(&format!("{}{}", ENDPOINT, api_key))?.text()?;
     let parsed = json::parse(&body)?;
 
